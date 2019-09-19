@@ -115,7 +115,8 @@ public class Util {
     private static List<Mat> excludedMats = new ArrayList<>();
     private static List<Block> includedMats = new ArrayList<>();
 
-    private static  Block gray = new Block(Imgcodecs.imread("D:/99bot/gray.png"), "gray", 25);
+    private static Block gray = new Block(Imgcodecs.imread("D:/99bot/gray.png"), "gray", 25);
+
     static {
         excludedMats.add(Imgcodecs.imread("D:/test/sub/zn1.png"));
         excludedMats.add(Imgcodecs.imread("D:/test/sub/zn2.png"));
@@ -139,7 +140,6 @@ public class Util {
 
 
     private static boolean isIncludeMat(Mat mat) {
-        long maxSim = -1;
         for (Block excludedMat : includedMats) {
             double similarity = similarity(mat, excludedMat);
             if (similarity > 40)
@@ -152,7 +152,7 @@ public class Util {
 
     private static double similarity(Mat mat, Block block) {
 
-        if(block.equals(gray)){
+        if (block.equals(gray)) {
 
             int all = 0;
 
@@ -162,7 +162,7 @@ public class Util {
                     double[] doubles1 = mat.get(x * 6, y * 6);
                     double[] doubles2 = block.mat.get(x * 6, y * 6);
 
-                    int num = (int)Math.abs(doubles1[1] - doubles2[1]) + (int)Math.abs(doubles1[2] - doubles2[2]);
+                    int num = (int) Math.abs(doubles1[1] - doubles2[1]) + (int) Math.abs(doubles1[2] - doubles2[2]);
 
                     if (num < 35)
                         all++;
@@ -183,12 +183,12 @@ public class Util {
 
                 double[] doubles2 = block.mat.get(x * 6, y * 6);
 
-                if (doubles1[2] < 85){
-                    all-=2;
+                if (doubles1[2] < 85) {
+                    all -= 2;
                     continue;
                 }
 
-                int num = (int)Math.abs(doubles1[0] - doubles2[0]);
+                int num = (int) Math.abs(doubles1[0] - doubles2[0]);
 
                 if (num < 10)
                     all++;
@@ -325,6 +325,8 @@ public class Util {
         board1.paint();
     }
 
+    private static int[][] mem = new int[20][10];
+
     private static void play() throws IOException {
         Controller controller = new Controller();
 
@@ -332,87 +334,143 @@ public class Util {
         controller.put(Controller.A, 8);
         controller.put(Controller.A, 128);
 
-        Board board;
-        Board last = getBoard();
-        last.paint();
+        Board board = getBoard();
+        Board nextBoard = new Board();
+        Piece[] lastNext = getNexts();
         Piece hold = null;
-        boolean isClean = false;
-
+        boolean canUseHold = false;
         while (true) {
             Piece[] nexts = getNexts();
 
-            if (notChanged(last.next, nexts)) {
+            if (notChanged(lastNext, nexts)) {
                 continue;
-            }
-
-            if (isClean) {
-                try {
-                    log.info("sleep");
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
             }
             log.info("changed");
-            board = getBoard();
+            board = new Board();
+            board.setFilled(getFilled());
+            board.setNext(nexts);
+
             log.info("获取屏幕信息结束");
+            board.paint();
 
-            if (notChanged(last.next, board.next)) {
-                continue;
-            }
+            Piece[] back = board.next;
+            board = correction(board, nextBoard);
+            board.next = back;
 
-//            boolean[][] checkFilled = getFilled();
-//            log.info("获取校验信息结束");
-//
-//            for (int x = 0; x < 20; x++) {
-//                for (int y = 0; y < 10; y++) {
-//                    if (checkFilled[x][y])
-//                        board.fill(x, y);
-//                }
-//            }
-
-
+            log.info("校正后");
+            board.paint();
             Move holdMove = null;
             if (hold != null) {
-                log.info("开始计算holdValue");
-                holdMove = board.getMove(hold,3);
-                log.info("结束计算holdValue");
+                log.trace("开始计算holdValue");
+                holdMove = board.getMove(hold, 3);
+                log.trace("结束计算holdValue");
             }
 
-            Piece piece = last.next[0];
+            Piece piece = lastNext[0];
             Move pieceMove;
 
             if (piece != null) {
-                log.info("开始计算value");
-                pieceMove = board.getMove(piece,5);
-                log.info("结束计算value");
+                log.trace("开始计算value");
+                pieceMove = board.getMove(piece, 5);
+                log.trace("结束计算value");
                 if (holdMove == null) {
                     Piece nextPiece = board.next[0];
-                    Move nextMove = board.getMove(nextPiece,5);
+                    Move nextMove = board.getMove(nextPiece, 5);
                     if (nextMove.value.v > pieceMove.value.v) {
                         hold = piece;
-                        //controller.exec("lb");
+                        controller.exec("lb");
                         controller.put(ZL);
                         log.info("init hold");
+                        nextBoard = board.copy();
+                        log.trace("init hold后");
+                        nextBoard.paint();
                     } else {
                         controller.exec(pieceMove, false);
-                        isClean = pieceMove.value.isClean;
+                        nextBoard = board.fill(pieceMove);
+                        log.trace("无hold后");
+                        nextBoard.paint();
                     }
                 } else {
-                    if (pieceMove.value.v < holdMove.value.v) {
+                    if (canUseHold && pieceMove.value.v < holdMove.value.v) {
                         hold = piece;
                         controller.exec(holdMove, true);
-                        isClean = holdMove.value.isClean;
+                        nextBoard = board.fill(holdMove);
+                        log.trace("hold后");
+                        nextBoard.paint();
                     } else {
                         controller.exec(pieceMove, false);
-                        isClean = pieceMove.value.isClean;
+                        nextBoard = board.fill(pieceMove);
+                        log.trace("后");
+                        nextBoard.paint();
+                        canUseHold = true;
                     }
                 }
             }
 
-            board.paint();
-            last = board;
+            lastNext = board.next.clone();
         }
+    }
+
+    private static Board correction(Board board, Board expected) {
+        int height = expected.getHeight();
+
+        int finalX = 0;
+        float sim = 0;
+        for (int x = 0; x < 20 - height; x++) {
+
+            int all = 0;
+            int match = 0;
+
+            for (int xx = 0; xx < height; xx++) {
+                for (int y = 0; y < 10; y++) {
+                    all++;
+                    if (expected.filled[xx][y] == board.filled[xx + x][y]) {
+                        match++;
+                    }
+                }
+            }
+            float f = (float) match / all;
+            if (f > sim) {
+                sim = f;
+                finalX = x;
+            }
+        }
+
+
+        if (finalX > 0) {
+            log.info("上升了");
+            for (int x = 0; x < finalX; x++) {
+                if (!isHoldRow(board.filled[x])) {
+                    log.info("图像不全，重新获取,高度{}", finalX);
+                    board.setFilled(getFilled());
+                    board.paint();
+                    return correction(board, expected);
+
+                }
+            }
+            log.info("图像完整");
+        } else {
+            log.info("没有上升");
+        }
+        log.info("开始修正");
+
+        for (int x = finalX; x < 20; x++) {
+            if (x - finalX < height)
+                board.filled[x] = expected.filled[x - finalX].clone();
+            else
+                board.filled[x] = new boolean[10];
+        }
+        return board;
+    }
+
+
+    static boolean isHoldRow(boolean[] row) {
+
+        int n = 0;
+        for (int y = 0; y < 10; y++) {
+            n += row[y] ? 1 : 0;
+        }
+        return n == 9;
     }
 
     private static boolean notChanged(Piece[] next1, Piece[] next2) {
@@ -422,11 +480,18 @@ public class Util {
             if (next2[i] == null)
                 return true;
         }
+
         for (int i = 0; i < 6; i++) {
-            if (!next2[i].equals(next1[i]))
+            if (next1[i] == null)
                 return false;
         }
-        return true;
+
+
+        for (int i = 0; i < 5; i++) {
+            if (!next2[i].equals(next1[i + 1]))
+                return true;
+        }
+        return false;
     }
 
 
@@ -437,7 +502,7 @@ public class Util {
             Mat mat1 = piece.getMat();
             SimilarPoint similarPoint = maxPointInMat(mat, mat1);
             double similarity = similarPoint.getSimilarity();
-            if (similarity > max) {
+            if (piece.character()!='O'&&similarity > max||piece.character()=='O'&&similarity>0.98) {
                 max = similarity;
                 candidate = piece;
             }

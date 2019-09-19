@@ -18,8 +18,8 @@ public class Controller {
     public volatile SwitchInputState state = SwitchInputState.NONE;
 
     ControllerLinster controllerLinster = new ControllerLinster(state);
-    //Socket socket = new Socket("localhost", 31337);
-    //OutputStream outputStream = socket.getOutputStream();
+    Socket socket = new Socket("localhost", 31337);
+    OutputStream outputStream = socket.getOutputStream();
 
     public Controller() throws IOException {
 
@@ -36,11 +36,7 @@ public class Controller {
 
     public static void main(String[] args) throws IOException {
         Controller controller = new Controller();
-        controller.put(Up);
-        controller.put(Up);
-        controller.put(Up);
-        controller.put(Up);
-        controller.put(Up);
+        controller.put(X);
     }
 
     void put(SwitchInputState state) {
@@ -56,9 +52,18 @@ public class Controller {
             e.printStackTrace();
         }
     }
-
+    public void exec(String s){
+        String cmd = "command "+ s+"\n";
+        try {
+            outputStream.write(cmd.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public void exec(Move move, boolean isHold) {
+
+
 
         Piece piece = move.piece;
         if (isHold) {
@@ -71,12 +76,12 @@ public class Controller {
         if (ni < move.xun) {
             for (int i = 0; i < ni; i++) {
                 xuan.add(Button.A);
-                //put(A);
+
             }
         } else {
             for (int i = 0; i < move.xun; i++) {
                 xuan.add(Button.X);
-                //put(X);
+
             }
         }
 
@@ -85,12 +90,10 @@ public class Controller {
         if (y > move.y) {
             for (int i = 0; i < y - move.y; i++) {
                 movedY.add(DPad.Left);
-                //put(Left);
             }
         } else {
             for (int i = 0; i < move.y - y; i++) {
                 movedY.add(DPad.Right);
-                //put(Right);
             }
         }
 
@@ -100,7 +103,7 @@ public class Controller {
             if(i<xuan.size() && i<movedY.size()){
                 put(new SwitchInputState(xuan.get(i) , movedY.get(i)));
             }
-            else if(i<xuan.size()&&i>=movedY.size()){
+            else if(i < xuan.size()){
                 put(new SwitchInputState(xuan.get(i)));
             }
             else {
@@ -109,5 +112,35 @@ public class Controller {
         }
         put(Up);
         log.info("\n" + move.toString());
+
+
+        StringBuilder s = new StringBuilder();
+
+        if (isHold) {
+            s.append("lb,");
+        }
+
+        if (ni < move.xun) {
+            for (int i = 0; i < ni; i++) {
+                s.append("a,");
+            }
+        } else {
+            for (int i = 0; i < move.xun; i++) {
+                s.append("x,");
+            }
+        }
+
+        if (y > move.y) {
+            for (int i = 0; i < y - move.y; i++) {
+                s.append("l,");
+            }
+        } else {
+            for (int i = 0; i < move.y - y; i++) {
+                s.append("r,");
+            }
+        }
+
+        s.append("u");
+        exec(s.toString());
     }
 }

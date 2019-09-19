@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my.mk.tetris99bot.piece.*;
+import org.jetbrains.annotations.NotNull;
 import org.opencv.core.Core;
 
 import java.lang.reflect.Array;
@@ -27,13 +28,14 @@ public class Board {
 
     Piece hold;
 
+    boolean canUseHold;
+
     public Board copy() {
-        return new Board(copy(filled), next.clone(), hold);
+        return new Board(copy(filled), next.clone(), hold,canUseHold);
     }
 
     private static boolean[][] copy(boolean[][] sourceRows) {
         boolean[][] newRows = new boolean[20][10];
-
         for (int i = 0; i < newRows.length; i++) {
             newRows[i] = sourceRows[i].clone();
         }
@@ -41,19 +43,18 @@ public class Board {
     }
 
     public void fill(int x, int y) {
-
         filled[x][y] = true;
     }
 
     public int fill(int y, PieceShape shape, int h) {
         int x = minX(y, shape);
         if (x == 20) {
-            System.out.println("over");
+            log.error("over");
             return x;
         }
         int cleaned = fill(x, y, shape);
         int height = x + (int) ((float) h / 2 - 0.5);
-        return 34 *2* cleaned - height * 45;
+        return 34 * 2 * cleaned - height * 45;
     }
 
 
@@ -218,17 +219,21 @@ public class Board {
 
         int q;
 
-        switch (clean){
-            case 1: q = -200;
-            break;
-            case 2: q = 400;
-            break;
-            case 3: q = 1600;
-            break;
-            case 4: q = 3200;
-            break;
+        switch (clean) {
+            case 1:
+                q = -200;
+                break;
+            case 2:
+                q = 400;
+                break;
+            case 3:
+                q = 1600;
+                break;
+            case 4:
+                q = 3200;
+                break;
             default:
-                q= 0;
+                q = 0;
         }
         int vv = v
                 + q
@@ -236,7 +241,7 @@ public class Board {
                 - 93 * colTransitions
                 - 79 * numberOfHoles
                 - 34 * wellSums;
-        return new Value(v,vv, clean > 1);
+        return new Value(v, vv, clean > 1);
 
 //
 //        for (int y = 0; y < 10; y++) {
@@ -355,7 +360,7 @@ public class Board {
 
         int recodeY = 0;
         int recodeI = 0;
-        Value maxValue = new Value(0,Integer.MIN_VALUE, false);
+        Value maxValue = new Value(0, Integer.MIN_VALUE, false);
 
         List<Move> moves = new ArrayList<>();
 
@@ -387,21 +392,40 @@ public class Board {
         int maxV = Integer.MIN_VALUE;
         Move res = null;
         for (Move move : moves) {
-            Board copy = copy();
-            copy.fill(move.y, move.piece.getShape(move.xun), move.piece.height(move.xun));
-            copy.clean();
+            Board copy = fill(move);
 
             for (int i = 0; i < 5; i++) {
-                copy.next[i] = copy.next[i+1];
+                copy.next[i] = copy.next[i + 1];
             }
             Move nextMove = copy.getMove(nextPiece, --dep);
             int avgV = (nextMove.value.getJiluV() + move.value.getJiluV()) / 2 + nextMove.value.v - nextMove.value.jiluV;
-            if(avgV > maxV){
+            if (avgV > maxV) {
                 res = move;
                 maxV = avgV;
             }
         }
         return res;
 
+    }
+
+    @NotNull
+    public Board fill(Move move) {
+        Board copy = copy();
+        copy.fill(move.y, move.piece.getShape(move.xun), move.piece.height(move.xun));
+        copy.clean();
+        return copy;
+    }
+
+    public int getHeight() {
+        int h = -1;
+        for (int y = 0; y < 10; y++) {
+            for (int x = 19; x >= 0; x--) {
+                if (filled[x][y] && x > h) {
+                    h = x;
+                    break;
+                }
+            }
+        }
+        return h+1;
     }
 }

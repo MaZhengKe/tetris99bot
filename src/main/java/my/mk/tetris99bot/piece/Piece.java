@@ -2,19 +2,21 @@ package my.mk.tetris99bot.piece;
 
 
 import my.mk.tetris99bot.Util;
-import org.opencv.core.Mat;
-import org.opencv.imgcodecs.Imgcodecs;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static my.mk.tetris99bot.Util.Path;
+import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
 
 /**
  * Represents one of the pieces: O, I, S, Z, L, J, T
  */
 public abstract class Piece {
 
-    private Mat mat = Imgcodecs.imread("D:/99bot/piece/" + character() + ".png");
-    private Mat bigMat = Imgcodecs.imread("D:/99bot/piece/big/" + character() + ".png");
+    private Mat mat = imread(Path+"small/" + character() + ".png");
+    private Mat bigMat = imread(Path+"big/" + character() + ".png");
     private static final int[] ROTATION_MODULUS = {0, 1, 0, 3};
 
 

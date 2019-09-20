@@ -9,28 +9,30 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 
 @Slf4j
 public class Controller {
 
-    public volatile SwitchInputState state = SwitchInputState.NONE;
 
-    ControllerLinster controllerLinster = new ControllerLinster(state);
-    Socket socket = new Socket("localhost", 31337);
-    OutputStream outputStream = socket.getOutputStream();
+    private static volatile SwitchInputState state = SwitchInputState.NONE;
 
-    public Controller() throws IOException {
+    private ControllerLinster controllerLinster = new ControllerLinster(state);
+     private Socket socket = new Socket("localhost", 31337);
+
+
+      private OutputStream outputStream = socket.getOutputStream();
+
+    Controller() throws IOException {
 
     }
 
-    public static SwitchInputState A = new SwitchInputState(Button.A);
-    public static SwitchInputState B = new SwitchInputState(Button.B);
-    public static SwitchInputState X = new SwitchInputState(Button.X);
-    public static SwitchInputState ZL = new SwitchInputState(Button.L);
+    static SwitchInputState A = new SwitchInputState(Button.A);
+    static SwitchInputState B = new SwitchInputState(Button.B);
+    private static SwitchInputState X = new SwitchInputState(Button.X);
+    static SwitchInputState ZL = new SwitchInputState(Button.L);
     public static SwitchInputState Down = new SwitchInputState(DPad.Down);
-    public static SwitchInputState Up = new SwitchInputState(DPad.Up);
+    private static SwitchInputState Up = new SwitchInputState(DPad.Up);
     public static SwitchInputState Left = new SwitchInputState(DPad.Left);
     public static SwitchInputState Right = new SwitchInputState(DPad.Right);
 
@@ -39,11 +41,11 @@ public class Controller {
         controller.put(X);
     }
 
-    void put(SwitchInputState state) {
+     private void put(SwitchInputState state) {
         put(state,4);
     }
 
-    void put(SwitchInputState state,int time) {
+     void put(SwitchInputState state,int time) {
         try {
             byte[] bytes = state.toBytes();
             controllerLinster.queue.put(new ScriptFrame(time, bytes));
@@ -52,7 +54,7 @@ public class Controller {
             e.printStackTrace();
         }
     }
-    public void exec(String s){
+     private void exec(String s){
         String cmd = "command "+ s+"\n";
         try {
             outputStream.write(cmd.getBytes());
@@ -61,12 +63,12 @@ public class Controller {
         }
     }
 
-    public void exec(Move move, boolean isHold) {
+      void exec(Move move) {
 
 
 
         Piece piece = move.piece;
-        if (isHold) {
+        if (move.isUseHold) {
             put(ZL);
         }
         List<Button> xuan = new ArrayList<>();
@@ -111,12 +113,12 @@ public class Controller {
             }
         }
         put(Up);
-        log.info("\n" + move.toString());
+        log.info("\n" + move.toString()+"\n");
 
 
         StringBuilder s = new StringBuilder();
 
-        if (isHold) {
+        if (move.isUseHold) {
             s.append("lb,");
         }
 

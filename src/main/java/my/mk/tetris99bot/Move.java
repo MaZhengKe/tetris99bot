@@ -26,6 +26,11 @@ class Move implements Comparable<Move>{
         this.value = value;
     }
 
+    Move(int y, int rotateIndex, Piece piece, Value value) {
+        this.m = new M(piece,y,rotateIndex,false);
+        this.value = value;
+    }
+
     public int getAllMoveValue() {
         int avg = this.value.avgV;
         int num = 1;

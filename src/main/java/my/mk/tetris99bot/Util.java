@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.Math.abs;
+import static my.mk.tetris99bot.Board.*;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
 import static org.bytedeco.opencv.global.opencv_imgproc.cvtColor;
 
@@ -148,9 +149,9 @@ public class Util {
         }
     }
 
-    static boolean[][] getFilled(Mat mat, boolean onlyUseGray) {
+    static long[] getFilled(Mat mat, boolean onlyUseGray) {
 
-        boolean[][] filled = new boolean[20][10];
+        long[] filled = new long[20];
 
         if (onlyUseGray) {
             for (int x = 0; x < 20; x++) {
@@ -158,7 +159,7 @@ public class Util {
                     Mat subMat = mat.apply(rects[x][y]);
                     log.trace("检测 {} {} 是否是gray", x, y);
                     if (similarity(subMat, gray) > 40)
-                        filled[x][y] = true;
+                        filled[x] |= 1 << y;
                 }
             }
         } else {
@@ -167,7 +168,7 @@ public class Util {
                     Mat subMat = mat.apply(rects[x][y]);
                     log.trace("检测 {} {}", x, y);
                     if (isIncludeMat(subMat))
-                        filled[x][y] = true;
+                        filled[x] |= 1 << y;
                 }
             }
         }
@@ -181,7 +182,7 @@ public class Util {
     private static Board getBoard() {
 
         Board board = new Board();
-        board.setFilled(frameTracker.getFilled());
+        board.setRows(frameTracker.getFilled());
         board.setNext(frameTracker.getNextPieces());
 
         return board;
@@ -202,6 +203,10 @@ public class Util {
         Controller controller = new Controller();
         controller.put(Controller.B, 8);
         controller.put(Controller.A, 8);
+        controller.put(Controller.A, 8);
+        controller.put(Controller.A, 8);
+        controller.put(Controller.A, 8);
+        controller.put(Controller.A, 8);
         controller.put(Controller.A, 128);
 
         //等待开始
@@ -213,7 +218,6 @@ public class Util {
         //第一次查看画面
         Board board = getBoard();
         Board tmp;
-        board.paint();
         //依据现有的行动预测下一步的画面
         Board nextBoard = new Board();
         nextBoard.setNext(frameTracker.getNextPieces());
@@ -226,16 +230,19 @@ public class Util {
             if (notEqual(nextBoard.next, nextPieces)) {
                 continue;
             }
-            log.info("开始获取场地信息");
 
-            board.filled = correction(frameTracker.getFilled(), nextBoard.filled, 5);
+            Board.cached = 0;
+            Board.notCached = 0;
+
+            log.info("开始获取场地信息");
+            board.rows = correction(frameTracker.getFilled(), nextBoard.rows, 5);
             board.next = nextPieces;
             board.hold = nextBoard.hold;
             board.currentPiece = nextBoard.currentPiece;
             log.info("场地信息获取结束");
-            Move move = board.get(4);
+            board.paint();
+            Move move = board.get(6);
             controller.exec(move);
-
 
             board.paintAll(move);
             board.useMove(move);
@@ -265,20 +272,28 @@ public class Util {
         return true;
     }
 
-    private static int getHeight(boolean[][] filled) {
+    private static int getHeight(long[] filled) {
         int h = -1;
-        for (int y = 0; y < 10; y++) {
-            for (int x = 19; x >= 0; x--) {
-                if (filled[x][y] && x > h) {
-                    h = x;
-                    break;
-                }
+        for (int x = 19; x >= 0; x--) {
+            if (filled[x] != EMPTY_ROW) {
+                h = x;
+                break;
             }
         }
+
         return h + 1;
     }
 
-    private static boolean[][] correction(boolean[][] board, boolean[][] expected, int numToRefresh) {
+    public static int andNum(long n) {
+        int count = 0;
+        while (n != 0) {
+            n = (n - 1) & n;
+            count++;
+        }
+        return count;
+    }
+
+    private static long[] correction(long[] board, long[] expected, int numToRefresh) {
 
         if (numToRefresh < 0) {
             log.info("刷新场地");
@@ -297,12 +312,8 @@ public class Util {
             int match = 0;
 
             for (int xx = 0; xx < height; xx++) {
-                for (int y = 0; y < 10; y++) {
-                    all++;
-                    if (expected[xx][y] == board[xx + x][y]) {
-                        match++;
-                    }
-                }
+                match += andNum(~(expected[xx] ^ board[xx + x]));
+                all += 10;
             }
             float f = (float) match / all;
             if (f == maxSim) {
@@ -344,21 +355,17 @@ public class Util {
         return board;
     }
 
-    private static void filling(boolean[][] board, boolean[][] expected, int startX, int expectedHight) {
+    private static void filling(long[] board, long[] expected, int startX, int expectedHight) {
         for (int x = startX; x < 20; x++) {
             if (x - startX < expectedHight)
-                board[x] = expected[x - startX].clone();
+                board[x] = expected[x - startX];
             else
-                board[x] = new boolean[10];
+                board[x] = EMPTY_ROW;
         }
     }
 
-    private static boolean isGarbage(boolean[] row) {
-        int n = 0;
-        for (int y = 0; y < 10; y++) {
-            n += row[y] ? 1 : 0;
-        }
-        return n == 9;
+    private static boolean isGarbage(long row) {
+        return andNum(row) == 9;
     }
 
     private static boolean notEqual(Piece[] expected, Piece[] now) {

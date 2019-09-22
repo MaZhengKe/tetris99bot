@@ -66,28 +66,12 @@ public abstract class Piece {
     public abstract char character();
 
     public int rotationsEndIndex() {
-        return heights().length - 1;
-    }
-
-    public int rotationModulus() {
-        return ROTATION_MODULUS[rotationsEndIndex()];
-    }
-
-    public int width(int rotation) {
-        return widths()[rotation];
-    }
-
-    public int height(int rotation) {
-        return heights()[rotation];
+        return pieceShapes.length - 1;
     }
 
     public PieceShape getShape(int rotation) {
         return pieceShapes[rotation];
     }
-
-    protected abstract int[] widths();
-
-    protected abstract int[] heights();
 
     protected abstract PieceShape[] shapes();
 

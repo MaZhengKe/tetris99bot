@@ -17,7 +17,6 @@ import static my.mk.tetris99bot.Util.sleep8ms;
  * 串口参数的配置 串口一般有如下参数可以在该串口打开以前进行配置： 包括串口号，波特率，输入/输出流控制，数据位数，停止位和奇偶校验。
  */
 @Slf4j
-// 注：串口操作类一定要继承SerialPortEventListener
 public class SerialPortUtils implements SerialPortEventListener {
     // 检测系统中可用的通讯端口类
     private CommPortIdentifier commPortId;

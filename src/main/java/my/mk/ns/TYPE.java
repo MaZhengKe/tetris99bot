@@ -38,15 +38,15 @@ public enum TYPE {
     ILLEGAL(state -> {
     });
 
-    private static Consumer<SwitchInputState> pressButton(Button button) {
+    private static Consumer<NSInputState> pressButton(Button button) {
         return state -> state.buttons.add(button);
     }
 
-    private static Consumer<SwitchInputState> releaseButton(Button button) {
+    private static Consumer<NSInputState> releaseButton(Button button) {
         return state -> state.buttons.remove(button);
     }
 
-    private static Consumer<SwitchInputState> pressStick(byte LeftX, byte LeftY, byte RightX, byte RightY) {
+    private static Consumer<NSInputState> pressStick(byte LeftX, byte LeftY, byte RightX, byte RightY) {
         return state -> {
             state.leftX = LeftX;
             state.leftY = LeftY;
@@ -56,8 +56,8 @@ public enum TYPE {
     }
 
     private static Map<String, TYPE> cache = new HashMap<>();
-    Consumer<SwitchInputState> press;
-    Consumer<SwitchInputState> release;
+    Consumer<NSInputState> press;
+    Consumer<NSInputState> release;
 
     static {
         cache.put("A", A);
@@ -76,22 +76,22 @@ public enum TYPE {
         cache.put("D", D);
     }
 
-    TYPE(Consumer<SwitchInputState> press) {
+    TYPE(Consumer<NSInputState> press) {
         this.press = press;
     }
     TYPE(Button button) {
         this(pressButton(button), releaseButton(button));
     }
 
-    TYPE(Consumer<SwitchInputState> press, Consumer<SwitchInputState> release) {
+    TYPE(Consumer<NSInputState> press, Consumer<NSInputState> release) {
         this.press = press;
         this.release = release;
     }
 
-    public void press(SwitchInputState state) {
+    public void press(NSInputState state) {
         press.accept(state);
     }
-    public void release(SwitchInputState state) {
+    public void release(NSInputState state) {
         release.accept(state);
     }
 

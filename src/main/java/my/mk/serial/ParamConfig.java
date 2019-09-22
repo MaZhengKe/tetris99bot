@@ -6,14 +6,26 @@ import lombok.Data;
 @Data
 public class ParamConfig {
 
-    private String serialNumber;// 串口号
-    private int baudRate;        // 波特率
-    private int checkoutBit;    // 校验位
-    private int dataBit;        // 数据位
-    private int stopBit;        // 停止位
-
-    public ParamConfig() {
-    }
+    /**
+     * 串口号
+     */
+    private String serialNumber;
+    /**
+     * 波特率
+     */
+    private int baudRate;
+    /**
+     * 校验位
+     */
+    private int checkoutBit;
+    /**
+     * 数据位
+     */
+    private int dataBit;
+    /**
+     * 停止位
+     */
+    private int stopBit;
 
     /**
      * 构造方法
@@ -31,5 +43,4 @@ public class ParamConfig {
         this.dataBit = dataBit;
         this.stopBit = stopBit;
     }
-
 }

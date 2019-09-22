@@ -2,44 +2,53 @@ package my.mk.tetris99bot;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import my.mk.tetris99bot.piece.Piece;
-import org.bytedeco.javacv.Java2DFrameUtils;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Rect;
-import org.opencv.core.Core;
-
-import java.awt.image.BufferedImage;
-
-import static org.bytedeco.javacv.Java2DFrameUtils.toBufferedImage;
-import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
+import org.jetbrains.annotations.NotNull;
 
 @Data
 @AllArgsConstructor
-public class Move {
-    static {
-        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-    }
-    final int y;
-    final int xun;
-    final Piece piece;
+class Move implements Comparable<Move>{
+    final M m;
     final Value value;
-    boolean isUseHold;
     Move next = null;
 
-    public Move(int i, int i1, Piece toUse, Value value, boolean b) {
-        this(i, i1, toUse, value, b, null);
+    @Data
+    @AllArgsConstructor
+   public static class M {
+        final Piece piece;
+        final int y;
+        final int rotateIndex;
+        boolean isUseHold;
     }
 
-    public static void main(String[] args) {
-        Mat mat = imread("D:/99bot/darkblue.png");
-        System.out.println("a");
-        System.out.println("a");
-        System.out.println("a");
-        System.out.println("a");
-        BufferedImage bufferedImage = toBufferedImage(mat);
-        Mat sub = mat.apply(new Rect(0, 0, 1, 1));
-        BufferedImage subimage = toBufferedImage(sub);
-        System.out.println("end");
+    Move(int y, int rotateIndex, Piece piece, Value value, boolean isUseHold) {
+        this.m = new M(piece,y,rotateIndex,isUseHold);
+        this.value = value;
+    }
+
+    public int getAllMoveValue() {
+        int avg = this.value.avgV;
+        int num = 1;
+        Move current = this;
+        while (current.next != null) {
+            num++;
+            avg += current.next.value.avgV;
+            current = current.next;
+        }
+        return avg / num + current.value.sumV;
+    }
+
+    @Override
+    public String toString() {
+        return m.piece + " " + m.y + " " + m.rotateIndex +
+                ",  V=" + getAllMoveValue() +
+                (m.isUseHold ? " useHold" : " notUse ") +
+                " value=" + value +
+                "\n" + (next != null ? next : "");
+    }
+
+    @Override
+    public int compareTo(@NotNull Move o) {
+        return o.getAllMoveValue() - this.getAllMoveValue() ;
     }
 }

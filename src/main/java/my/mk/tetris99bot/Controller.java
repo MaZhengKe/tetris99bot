@@ -5,144 +5,158 @@ import my.mk.ns.*;
 import my.mk.tetris99bot.piece.Piece;
 import my.mk.tetris99bot.piece.PieceShape;
 
+import javax.swing.*;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static my.mk.tetris99bot.Util.pieces;
 
 @Slf4j
-public class Controller {
+public class Controller extends JFrame {
+    ProShowPanel proShowPanel;
 
+    private StateSender stateSender = new StateSender();
 
-    private static volatile SwitchInputState state = SwitchInputState.NONE;
-
-    private ControllerLinster controllerLinster = new ControllerLinster(state);
-     private Socket socket = new Socket("localhost", 31337);
-
-
-      private OutputStream outputStream = socket.getOutputStream();
-
-    Controller() throws IOException {
-
+    Controller() {
+        proShowPanel = new ProShowPanel();
+        this.add(proShowPanel);
+        this.setTitle("Controller");
+        this.setLocation(0, 0);
+        this.setSize(900, 650);
+        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        this.setVisible(true);
+        proShowPanel.init();
+        initCache();
     }
 
-    static SwitchInputState A = new SwitchInputState(Button.A);
-    static SwitchInputState B = new SwitchInputState(Button.B);
-    private static SwitchInputState X = new SwitchInputState(Button.X);
-    static SwitchInputState ZL = new SwitchInputState(Button.L);
-    public static SwitchInputState Down = new SwitchInputState(DPad.Down);
-    private static SwitchInputState Up = new SwitchInputState(DPad.Up);
-    public static SwitchInputState Left = new SwitchInputState(DPad.Left);
-    public static SwitchInputState Right = new SwitchInputState(DPad.Right);
+    static NSInputState A = new NSInputState(Button.A);
+    static NSInputState B = new NSInputState(Button.B);
+    private static NSInputState X = new NSInputState(Button.X);
+    static NSInputState ZL = new NSInputState(Button.L);
+    public static NSInputState Down = new NSInputState(DPad.Down);
+    private static NSInputState Up = new NSInputState(DPad.Up);
+    public static NSInputState Left = new NSInputState(DPad.Left);
+    public static NSInputState Right = new NSInputState(DPad.Right);
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
+
+        FrameTracker tracker = new FrameTracker();
+        tracker.start();
         Controller controller = new Controller();
-        controller.put(X);
-    }
-
-     private void put(SwitchInputState state) {
-        put(state,4);
-    }
-
-     void put(SwitchInputState state,int time) {
-        try {
-            byte[] bytes = state.toBytes();
-            controllerLinster.queue.put(new ScriptFrame(time, bytes));
-            controllerLinster.queue.put(new ScriptFrame(4, SwitchInputState.NONE.toBytes()));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-     private void exec(String s){
-        String cmd = "command "+ s+"\n";
-        try {
-            outputStream.write(cmd.getBytes());
-        } catch (IOException e) {
-            e.printStackTrace();
+        while (true) {
+            controller.put(Up, 4);
+            controller.put(Left, 4);
+            controller.put(Right, 4);
+            controller.put(A, 4);
+            controller.put(B, 4);
+            Thread.sleep(2000);
         }
     }
 
-      void exec(Move move) {
+    private void put(NSInputState state) {
+        put(state, 4);
+    }
+
+//    private void put2(NSInputState state) {
+//        put2(state, 4);
+//    }
+
+    void put(NSInputState state, int time) {
+
+        byte[] bytes = state.toBytes();
+        stateSender.addToSend(new ScriptFrame(time, bytes));
+        stateSender.addToSend(new ScriptFrame(4, NSInputState.NONE.toBytes()));
+        proShowPanel.addToShow(new InputFrame(state, time));
+        proShowPanel.addToShow(new InputFrame(NSInputState.NONE, time));
+
+    }
+
+    void put2(NSInputState state, int time) {
+
+        log.info("put2 {} start", state.dPad);
+        byte[] bytes = state.toBytes();
+        stateSender.addToSend(new ScriptFrame(time, bytes));
+        proShowPanel.addToShow(new InputFrame(state, time));
+
+        log.info("put2 {} over", state.dPad);
+
+    }
+
+    private HashMap<Move.M, List<NSInputState>> cache = new HashMap<>();
 
 
+    private void initCache() {
+        boolean[] allBoolean = new boolean[]{false, true};
+        for (boolean isUseHold : allBoolean) {
+            for (Piece piece : pieces) {
+                for (PieceShape pieceShape : piece.getPieceShapes()) {
+                    for (int y = 0; y < 10; y++) {
 
-        Piece piece = move.piece;
-        if (move.isUseHold) {
-            put(ZL);
+                        List<Button> rotate = new ArrayList<>();
+                        List<DPad> moving = new ArrayList<>();
+                        List<NSInputState> list = new ArrayList<>();
+                        if (isUseHold){
+                            list.add(ZL);
+                            list.add(NSInputState.NONE);
+                    }
+
+                        int rotateIndex = pieceShape.getRotateIndex();
+                        int ni = piece.rotationsEndIndex() + 1 - rotateIndex;
+                        if (ni < rotateIndex) {
+                            for (int i = 0; i < ni; i++) {
+                                rotate.add(Button.A);
+                            }
+                        } else {
+                            for (int i = 0; i < rotateIndex; i++) {
+                                rotate.add(Button.X);
+                            }
+                        }
+
+                        int startY = pieceShape.getY();
+                        if (startY > y) {
+                            for (int i = 0; i < startY - y; i++) {
+                                moving.add(DPad.Left);
+                            }
+                        } else {
+                            for (int i = 0; i < y - startY; i++) {
+                                moving.add(DPad.Right);
+                            }
+                        }
+
+                        int max = Math.max(rotate.size(), moving.size());
+                        for (int i = 0; i < max; i++) {
+                            if (i < rotate.size() && i < moving.size()) {
+                                list.add(new NSInputState(rotate.get(i), moving.get(i)));
+                                list.add(NSInputState.NONE);
+                            } else if (i < rotate.size()) {
+                                list.add(new NSInputState(rotate.get(i)));
+                                list.add(NSInputState.NONE);
+                            } else {
+                                list.add(new NSInputState(moving.get(i)));
+                                list.add(NSInputState.NONE);
+                            }
+                        }
+                        list.add(Up);
+                        list.add(NSInputState.NONE);
+
+                        for (NSInputState nsInputState : list) {
+                            nsInputState.cache = nsInputState.toBytes();
+                        }
+                        Move.M m = new Move.M(piece, y, rotateIndex, isUseHold);
+                        cache.put(m, list);
+                    }
+                }
+            }
         }
-        List<Button> xuan = new ArrayList<>();
-        List<DPad> movedY = new ArrayList<>();
+    }
 
-        int ni = piece.rotationsEndIndex() + 1 - move.xun;
-        if (ni < move.xun) {
-            for (int i = 0; i < ni; i++) {
-                xuan.add(Button.A);
-
-            }
-        } else {
-            for (int i = 0; i < move.xun; i++) {
-                xuan.add(Button.X);
-
-            }
+    void exec(Move move) {
+        List<NSInputState> list = cache.get(move.m);
+        for (NSInputState nsInputState : list) {
+            stateSender.addToSend(new ScriptFrame(4, nsInputState.cache));
+            proShowPanel.addToShow(new InputFrame(nsInputState, 4));
         }
-
-        PieceShape shape = piece.getShape(move.xun);
-        int y = shape.getY();
-        if (y > move.y) {
-            for (int i = 0; i < y - move.y; i++) {
-                movedY.add(DPad.Left);
-            }
-        } else {
-            for (int i = 0; i < move.y - y; i++) {
-                movedY.add(DPad.Right);
-            }
-        }
-
-
-        int max = Math.max(xuan.size(), movedY.size());
-        for (int i = 0; i < max; i++) {
-            if(i<xuan.size() && i<movedY.size()){
-                put(new SwitchInputState(xuan.get(i) , movedY.get(i)));
-            }
-            else if(i < xuan.size()){
-                put(new SwitchInputState(xuan.get(i)));
-            }
-            else {
-                put(new SwitchInputState(movedY.get(i)));
-            }
-        }
-        put(Up);
-        log.info("\n" + move.toString()+"\n");
-
-
-        StringBuilder s = new StringBuilder();
-
-        if (move.isUseHold) {
-            s.append("lb,");
-        }
-
-        if (ni < move.xun) {
-            for (int i = 0; i < ni; i++) {
-                s.append("a,");
-            }
-        } else {
-            for (int i = 0; i < move.xun; i++) {
-                s.append("x,");
-            }
-        }
-
-        if (y > move.y) {
-            for (int i = 0; i < y - move.y; i++) {
-                s.append("l,");
-            }
-        } else {
-            for (int i = 0; i < move.y - y; i++) {
-                s.append("r,");
-            }
-        }
-
-        s.append("u");
-        exec(s.toString());
+        log.info("命令缓存完成\n" + move.toString() + "\n");
     }
 }

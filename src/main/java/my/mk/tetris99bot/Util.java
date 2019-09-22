@@ -13,9 +13,10 @@ import org.jetbrains.annotations.NotNull;
 import org.opencv.core.Core;
 import org.opencv.imgproc.Imgproc;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import static org.bytedeco.opencv.global.opencv_core.minMaxLoc;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
@@ -35,19 +36,21 @@ public class Util {
     private static Point min = new Point(1);
     private static Point max = new Point(1);
     private static List<Block> includedMats = new ArrayList<>();
-    public static String Path = "D:\\99bot\\kb\\a\\";
-    private static String piecePath = Path + "piece/";
-    private static Block gray = new Block(imread(piecePath + "gray.png"), "gray", 25);
+    private static String ROOT_PATH = "D:/99bot/theme/";
+    private static String THEME = "Kirby";
+    public static String PATH = ROOT_PATH + THEME;
+    private static String PIECE_PATH = PATH + "/piece/";
+    private static Block gray = new Block(imread(PIECE_PATH + "gray.png"), "gray", 25);
 
     static {
-        includedMats.add(new Block(imread(piecePath + "Dblue.png"), "Dkblue", 7));
+        includedMats.add(new Block(imread(PIECE_PATH + "Dblue.png"), "Dkblue", 7));
         includedMats.add(gray);
-        includedMats.add(new Block(imread(piecePath + "Green.png"), "Green"));
-        includedMats.add(new Block(imread(piecePath + "Lblue.png"), "Ltblue"));
-        includedMats.add(new Block(imread(piecePath + "Purple.png"), "Purple"));
-        includedMats.add(new Block(imread(piecePath + "Red.png"), "Red   ", 11));
-        includedMats.add(new Block(imread(piecePath + "Yellow.png"), "Yellow"));
-        includedMats.add(new Block(imread(piecePath + "Orange.png"), "Orange"));
+        includedMats.add(new Block(imread(PIECE_PATH + "Green.png"), "Green"));
+        includedMats.add(new Block(imread(PIECE_PATH + "Lblue.png"), "Ltblue"));
+        includedMats.add(new Block(imread(PIECE_PATH + "Purple.png"), "Purple"));
+        includedMats.add(new Block(imread(PIECE_PATH + "Red.png"), "Red   ", 11));
+        includedMats.add(new Block(imread(PIECE_PATH + "Yellow.png"), "Yellow"));
+        includedMats.add(new Block(imread(PIECE_PATH + "Orange.png"), "Orange"));
     }
 
     @NotNull
@@ -57,11 +60,11 @@ public class Util {
         return imgHSV;
     }
 
-    private static SimilarPoint maxPointInMat(Mat mat, Mat subMat) {
+    private static double maxPointInMat(Mat mat, Mat subMat) {
         Mat result = new Mat();
         matchTemplate(mat, subMat, result, Imgproc.TM_CCORR_NORMED);
         minMaxLoc(result, minVal, maxVal, min, max, null);
-        return new SimilarPoint(max, maxVal.get());
+        return maxVal.get();
     }
 
     private static boolean isIncludeMat(Mat mat) {
@@ -73,7 +76,7 @@ public class Util {
         return false;
     }
 
-    private static Piece[] pieces = new Piece[]{new PieceO(), new PieceI(), new PieceS(), new PieceZ(), new PieceL(), new PieceJ(), new PieceT()};
+    public static Piece[] pieces = new Piece[]{new PieceO(), new PieceI(), new PieceS(), new PieceZ(), new PieceL(), new PieceJ(), new PieceT()};
 
     private static double similarity(Mat mat, Block block) {
         UByteIndexer indexer = mat.createIndexer();
@@ -84,7 +87,7 @@ public class Util {
 
             for (int x = 0; x < 8; x++) {
                 for (int y = 0; y < 8; y++) {
-                    indexer.get(x, y, a);
+                    indexer.get(x * 6, y * 6, a);
                     int num = Math.abs(a[1] - block.hsv[x][y][1]) + Math.abs(a[2] - block.hsv[x][y][2]);
                     if (num < 35)
                         all++;
@@ -100,7 +103,7 @@ public class Util {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
 
-                indexer.get(x, y, a);
+                indexer.get(x * 6, y * 6, a);
                 if (a[2] < 85) {
                     all -= 2;
                     continue;
@@ -117,12 +120,13 @@ public class Util {
     }
 
     private static boolean[][] getFilled() {
-        log.info("start to get mat");
         Mat mat = getFilledMat();
-        log.info("get mat end");
-        boolean[][] filled = getFilled(mat);
-        log.info("trans end");
-        return filled;
+        return getFilled(mat, false);
+    }
+
+    private static boolean[][] getFilledWithGray() {
+        Mat mat = getFilledMat();
+        return getFilled(mat, true);
     }
 
     private static FrameTracker frameTracker = new FrameTracker();
@@ -152,52 +156,68 @@ public class Util {
         }
     }
 
-    private static boolean[][] getFilled(Mat mat) {
+    private static boolean[][] getFilled(Mat mat, boolean onlyUseGray) {
 
         boolean[][] filled = new boolean[20][10];
 
-        for (int x = 0; x < 20; x++) {
-            for (int y = 0; y < 10; y++) {
-
-                Mat subMat = mat.apply(rects[x][y]);
-
-                log.trace("检测 {} {}", x, y);
-                if (isIncludeMat(subMat))
-                    filled[x][y] = true;
+        if (onlyUseGray) {
+            for (int x = 0; x < 20; x++) {
+                for (int y = 0; y < 10; y++) {
+                    Mat subMat = mat.apply(rects[x][y]);
+                    log.trace("检测 {} {} 是否是gray", x, y);
+                    if (similarity(subMat, gray) > 40)
+                        filled[x][y] = true;
+                }
+            }
+        } else {
+            for (int x = 0; x < 20; x++) {
+                for (int y = 0; y < 10; y++) {
+                    Mat subMat = mat.apply(rects[x][y]);
+                    log.trace("检测 {} {}", x, y);
+                    if (isIncludeMat(subMat))
+                        filled[x][y] = true;
+                }
             }
         }
+
+
         return filled;
     }
 
+    /**
+     * @return 从当前画面识别原始的场地和NextPiece信息
+     */
     private static Board getBoard() {
 
         Board board = new Board();
-
         board.setFilled(getFilled());
-        board.setNext(getNexts());
+        board.setNext(getNextPieces());
 
         return board;
 
     }
 
-    private static Rect bigNext = new Rect(1221, 123, 107, 52);
-    private static Rect[] smallNexts = new Rect[5];
+    private static Rect bigNextPiece = new Rect(1222, 123, 104, 52);
+    private static Rect[] smallNextPieces = new Rect[5];
 
     static {
 
         for (int i = 0; i < 5; i++) {
-            smallNexts[i] = new Rect(1223, 216 + i * (44 + 38), 89, 44);
+            smallNextPieces[i] = new Rect(1224, 216 + i * (44 + 38), 88, 44);
         }
     }
 
-    private static Piece[] getNexts() {
+    //static Random random = new Random();
+
+    private static Piece[] getNextPieces() {
         Mat mat = getAllMat();
         Piece[] nextPieces = new Piece[6];
-        Mat nextMat = mat.apply(bigNext);
+        Mat nextMat = mat.apply(bigNextPiece);
         Piece nextPiece = bigMat2Piece(nextMat);
+        //imwrite(PATH + "/big-"+nextPiece + random.nextInt()+".png", nextMat);
         nextPieces[0] = nextPiece;
         for (int i = 0; i < 5; i++) {
-            Mat next = mat.apply(smallNexts[i]);
+            Mat next = mat.apply(smallNextPieces[i]);
             Piece piece = mat2Piece(next);
             nextPieces[i + 1] = piece;
         }
@@ -205,75 +225,100 @@ public class Util {
     }
 
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         frameTracker.start();
         Thread.sleep(4000);
         play();
     }
 
-    private static void play() throws IOException {
+    private static void play() {
+        //初始化开始游戏
         Controller controller = new Controller();
-
         controller.put(Controller.B, 8);
         controller.put(Controller.A, 8);
         controller.put(Controller.A, 128);
 
+        //等待开始
         while (true) {
-            if (ready(getNexts()))
+            if (ready(getNextPieces()))
                 break;
         }
         log.info("already");
+        //第一次查看画面
         Board board = getBoard();
+        Board tmp;
         board.paint();
+        //依据现有的行动预测下一步的画面
         Board nextBoard = new Board();
-        nextBoard.setNext(getNexts());
+        nextBoard.setNext(getNextPieces());
         nextBoard.currentPiece = nextBoard.next[0];
-        nextBoard.useNext();
+        nextBoard.refreshNext();
+
         while (true) {
 
-            Piece[] nexts = getNexts();
-            if (notChanged(nextBoard.next, nexts)) {
+            Piece[] nextPieces = getNextPieces();
+            if (notEqual(nextBoard.next, nextPieces)) {
                 continue;
             }
-            board = new Board();
-            log.info("nexts changed");
-            board.setFilled(getFilled());
+            log.info("nextPieces改变了，开始获取场地信息");
 
-            log.info("获取屏幕信息结束");
-            board.setNext(nexts);
-            board.paint();
-
-            Piece[] back = board.next;
-            board = correction(board, nextBoard);
-            board.next = back;
-
+            board.filled = correction(getFilled(), nextBoard.filled, 5);
+            board.next = nextPieces;
             board.hold = nextBoard.hold;
-            board.canUseHold = nextBoard.canUseHold;
             board.currentPiece = nextBoard.currentPiece;
 
-            log.info("校正后");
+            log.info("场地信息获取结束");
             board.paint();
 
-            Move move = board.get(1);
-            nextBoard = board.fill(move);
+            Move move = board.get(4);
             controller.exec(move);
+
+
+            board.paintAll(move);
+            board.useMove(move);
+            //交换空间节省时间开销
+            tmp = nextBoard;
+            nextBoard = board;
+            board = tmp;
+
 
         }
     }
 
-    private static boolean ready(Piece[] nexts) {
+    private static boolean ready(Piece[] nextPieces) {
         for (int i = 0; i < 6; i++) {
-            if (nexts[i] == null)
+            if (nextPieces[i] == null)
                 return false;
         }
         return true;
     }
 
-    private static Board correction(Board board, Board expected) {
-        int height = expected.getHeight();
+    private static int getHeight(boolean[][] filled) {
+        int h = -1;
+        for (int y = 0; y < 10; y++) {
+            for (int x = 19; x >= 0; x--) {
+                if (filled[x][y] && x > h) {
+                    h = x;
+                    break;
+                }
+            }
+        }
+        return h + 1;
+    }
 
-        int finalX = 0;
-        float sim = 0;
+    private static boolean[][] correction(boolean[][] board, boolean[][] expected, int numToRefresh) {
+
+        if (numToRefresh < 0) {
+            log.info("刷新场地");
+            board = getFilled();
+            numToRefresh = 5;
+        }
+
+        int height = getHeight(expected);
+
+        int startX = 0;
+        float maxSim = 0;
+        boolean hasEq = false;
         for (int x = 0; x < 20 - height; x++) {
 
             int all = 0;
@@ -282,48 +327,61 @@ public class Util {
             for (int xx = 0; xx < height; xx++) {
                 for (int y = 0; y < 10; y++) {
                     all++;
-                    if (expected.filled[xx][y] == board.filled[xx + x][y]) {
+                    if (expected[xx][y] == board[xx + x][y]) {
                         match++;
                     }
                 }
             }
             float f = (float) match / all;
-            if (f > sim) {
-                sim = f;
-                finalX = x;
+            if (f == maxSim) {
+                hasEq = true;
+            }
+            if (f > maxSim) {
+                hasEq = false;
+                maxSim = f;
+                startX = x;
             }
         }
 
+        if (hasEq) {
+            // TODO 这样判断并不准确
+            log.info("无法判断增加行数");
+            board = getFilled();
+            return correction(board, expected, numToRefresh-1);
+        }
 
-        if (finalX > 0) {
-            log.info("上升了");
-            for (int x = 0; x < finalX; x++) {
-                if (!isHoldRow(board.filled[x])) {
-                    log.info("图像不全，重新获取,高度{}", finalX);
-                    board.setFilled(getFilled());
-                    board.paint();
-                    return correction(board, expected);
-
+        if (startX > 0) {
+            log.trace("场地高度增加了");
+            // 重新获取上升位置的场地信息，只能存在灰色方块
+            board = getFilledWithGray();
+            for (int x = 0; x < startX; x++) {
+                if (!isGarbage(board[x])) {
+                    log.info("图像不全，重新用Gray获取,高度{},刷新次数{}", startX, numToRefresh);
+                    board = getFilledWithGray();
+                    filling(board, expected, startX, height);
+                    return correction(board, expected, numToRefresh - 1);
                 }
             }
-            log.info("图像完整");
+            log.trace("图像完整");
         } else {
-            log.info("没有上升");
+            log.trace("没有上升");
         }
-        log.info("开始修正");
+        log.trace("开始修正");
 
-        for (int x = finalX; x < 20; x++) {
-            if (x - finalX < height)
-                board.filled[x] = expected.filled[x - finalX].clone();
-            else
-                board.filled[x] = new boolean[10];
-        }
+        filling(board, expected, startX, height);
         return board;
     }
 
+    private static void filling(boolean[][] board, boolean[][] expected,int startX,int expectedHight){
+        for (int x = startX; x < 20; x++) {
+            if (x - startX < expectedHight)
+                board[x] = expected[x - startX].clone();
+            else
+                board[x] = new boolean[10];
+        }
+    }
 
-    private static boolean isHoldRow(boolean[] row) {
-
+    private static boolean isGarbage(boolean[] row) {
         int n = 0;
         for (int y = 0; y < 10; y++) {
             n += row[y] ? 1 : 0;
@@ -331,35 +389,20 @@ public class Util {
         return n == 9;
     }
 
-    private static boolean notChanged(Piece[] next1, Piece[] next2) {
-
-
+    private static boolean notEqual(Piece[] expected, Piece[] now) {
         for (int i = 0; i < 6; i++) {
-            if (next2[i] == null)
-                return true;
-        }
-
-        for (int i = 0; i < 6; i++) {
-            if (next1[i] == null)
-                return false;
-        }
-
-
-        for (int i = 0; i < 4; i++) {
-            if (!next2[i].equals(next1[i]))
+            if (now[i] == null || (i < 4 && !now[i].equals(expected[i])))
                 return true;
         }
         return false;
     }
-
 
     private static Piece mat2Piece(Mat mat) {
         Piece candidate = null;
         double max = 0.95;
         for (Piece piece : pieces) {
             Mat mat1 = piece.getMat();
-            SimilarPoint similarPoint = maxPointInMat(mat, mat1);
-            double similarity = similarPoint.getSimilarity();
+            double similarity = maxPointInMat(mat, mat1);
             if (piece.character() != 'O' && similarity > max || piece.character() == 'O' && similarity > 0.98) {
                 max = similarity;
                 candidate = piece;
@@ -372,8 +415,7 @@ public class Util {
         Piece candidate = null;
         double max = 0.95;
         for (Piece piece : pieces) {
-            SimilarPoint similarPoint = maxPointInMat(mat, piece.getBigMat());
-            double similarity = similarPoint.getSimilarity();
+            double similarity = maxPointInMat(mat, piece.getBigMat());
             if (similarity > max) {
                 max = similarity;
                 candidate = piece;

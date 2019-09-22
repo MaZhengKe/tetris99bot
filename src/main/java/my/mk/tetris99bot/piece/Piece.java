@@ -1,13 +1,12 @@
 package my.mk.tetris99bot.piece;
 
 
-import my.mk.tetris99bot.Util;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static my.mk.tetris99bot.Util.Path;
+import static my.mk.tetris99bot.Util.PATH;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
 
 /**
@@ -15,11 +14,12 @@ import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
  */
 public abstract class Piece {
 
-    private Mat mat = imread(Path+"small/" + character() + ".png");
-    private Mat bigMat = imread(Path+"big/" + character() + ".png");
+    private Mat mat = imread(PATH + "/small/" + character() + ".png");
+    private Mat bigMat = imread(PATH + "/big/" + character() + ".png");
+    private PieceShape[] pieceShapes = shapes();
+
+
     private static final int[] ROTATION_MODULUS = {0, 1, 0, 3};
-
-
     public static final int O = 1;
     public static final int I = 2;
     public static final int S = 3;
@@ -27,7 +27,6 @@ public abstract class Piece {
     public static final int L = 5;
     public static final int J = 6;
     public static final int T = 7;
-
     private static final Map<Character, Integer> indexMap = new HashMap<>();
 
     static {
@@ -50,14 +49,18 @@ public abstract class Piece {
         return indexMap.get(piece);
     }
 
-
     public abstract byte number();
 
     public Mat getMat() {
         return mat;
     }
+
     public Mat getBigMat() {
         return bigMat;
+    }
+
+    public PieceShape[] getPieceShapes() {
+        return pieceShapes;
     }
 
     public abstract char character();
@@ -79,7 +82,7 @@ public abstract class Piece {
     }
 
     public PieceShape getShape(int rotation) {
-        return shapes()[rotation];
+        return pieceShapes[rotation];
     }
 
     protected abstract int[] widths();

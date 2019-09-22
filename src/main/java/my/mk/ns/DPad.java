@@ -1,15 +1,15 @@
 package my.mk.ns;
 
 public enum DPad {
-    Up((byte)0),
-    UpRight((byte)1),
-    Right((byte)2),
-    DownRight((byte)3),
-    Down((byte)4),
-    DownLeft((byte)5),
-    Left((byte)6),
-    UpLeft((byte)7),
-    None((byte)8);
+    Up(0),
+    UpRight(1),
+    Right(2),
+    DownRight(3),
+    Down(4),
+    DownLeft(5),
+    Left(6),
+    UpLeft(7),
+    None(8);
 
     private byte value;
 
@@ -17,7 +17,7 @@ public enum DPad {
         return value;
     }
 
-    DPad(byte value) {
-        this.value = value;
+    DPad(int value) {
+        this.value =(byte) value;
     }
 }

@@ -4,41 +4,40 @@ import lombok.extern.slf4j.Slf4j;
 import org.bytedeco.javacv.*;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_MJPEG;
+import static org.bytedeco.ffmpeg.global.avutil.AV_LOG_PANIC;
+import static org.bytedeco.ffmpeg.global.avutil.av_log_set_level;
+
 @Slf4j
 public class FrameTracker extends Thread {
-    private Mat back = null;
 
     private OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
     private Mat converted;
 
     synchronized Mat get() {
-        log.trace("get");
-        return back.clone();
-    }
-
-    private synchronized void set() {
-        log.trace("set");
-        back = converted.clone();
+        return converted.clone();
     }
 
     @Override
     public void run() {
         try {
-            FrameGrabber grabber = new FFmpegFrameGrabber("video=AVerMedia Live Gamer HD 2");
-            grabber.setOption("loglevel", "quiet");
-            grabber.setOption("hide_banner", " ");
 
+            av_log_set_level(AV_LOG_PANIC);
+            FrameGrabber grabber = new FFmpegFrameGrabber("video=AVerMedia Live Gamer HD 2");
             grabber.setFormat("dshow");
             grabber.setOption("video_size", "1920x1080");
-            grabber.setOption("framerate", "60");
+            grabber.setOption("framerate", "60.0002");
             grabber.setOption("pixel_format", "yuyv422");
+            grabber.setVideoCodec(AV_CODEC_ID_MJPEG);
             grabber.start();
             CanvasFrame frame = new CanvasFrame("ScreenCastingTest", 1.0);
-            converted = converterToMat.convert(grabber.grab());
+            Frame image = grabber.grab();
+            converted = converterToMat.convert(image);
             while (frame.isVisible()) {
-                Frame f = grabber.grab();
-                set();
-                frame.showImage(f);
+                synchronized (this) {
+                    grabber.grab();
+                }
+                frame.showImage(image);
             }
             grabber.stop();
             frame.dispose();

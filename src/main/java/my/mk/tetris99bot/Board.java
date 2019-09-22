@@ -8,10 +8,7 @@ import my.mk.tetris99bot.piece.*;
 import org.jetbrains.annotations.NotNull;
 import org.opencv.core.Core;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 @Data
 @NoArgsConstructor
@@ -27,10 +24,9 @@ public class Board {
     Piece[] next = new Piece[6];
     Piece hold = null;
     Piece currentPiece = null;
-    boolean canUseHold;
 
     private Board copy() {
-        return new Board(copy(filled), next.clone(), hold, currentPiece, canUseHold);
+        return new Board(copy(filled), next.clone(), hold, currentPiece);
     }
 
     private static boolean[][] copy(boolean[][] sourceRows) {
@@ -45,6 +41,8 @@ public class Board {
         filled[x][y] = true;
     }
 
+    private static int[] s = new int[]{0, -500, -200, 1600, 3200};
+
     private int fill(int y, PieceShape shape, int h) {
         int x = minX(y, shape);
         if (x == 20) {
@@ -52,8 +50,13 @@ public class Board {
             return x;
         }
         int cleaned = fill(x, y, shape);
+
+        int clean = clean();
+        int q = s[clean];
+
         int height = x + (int) ((float) h / 2 - 0.5);
-        return 34 * 2 * cleaned - height * 45;
+//        return 34 * cleaned - height * 45;
+        return q - height * 45;
     }
 
 
@@ -72,8 +75,8 @@ public class Board {
                 //copy.paint();
                 Value value = copy.value(v);
                 //System.out.println(value);
-                if (value.v > maxValue) {
-                    maxValue = value.v;
+                if (value.all > maxValue) {
+                    maxValue = value.all;
                     recodeY = y;
                     recodeI = i;
                 }
@@ -82,7 +85,6 @@ public class Board {
 
 
         fill(recodeY, piece.getShape(recodeI), piece.height(recodeI));
-        clean();
 
     }
 
@@ -144,8 +146,7 @@ public class Board {
         return num;
     }
 
-    private Value value(int v) {
-        int clean = clean();
+    private Value value(int avgV) {
 //        int mixHeight = 20 - height();
 //
 //        int kong = 0;
@@ -216,30 +217,11 @@ public class Board {
 //                " well：" + wellSums
 //        );
 
-        int q;
-
-        switch (clean) {
-            case 1:
-                q = 0;
-                break;
-            case 2:
-                q = 400;
-                break;
-            case 3:
-                q = 1600;
-                break;
-            case 4:
-                q = 3200;
-                break;
-            default:
-                q = 0;
-        }
-        int vv = v
-                - 32 * rowTransitions
+        int sumV = -32 * rowTransitions
                 - 93 * colTransitions
                 - 79 * numberOfHoles
                 - 34 * wellSums;
-        return new Value(v, vv, clean > 1);
+        return new Value(avgV, sumV);
 
 //
 //        for (int y = 0; y < 10; y++) {
@@ -305,8 +287,69 @@ public class Board {
         return true;
     }
 
+    public void paintAll(Move move) {
+        Board copy = copy();
+        List<Point> list = new ArrayList<>();
+        Move.M m = move.m;
+        PieceShape shape = m.piece.getShape(m.rotateIndex);
+        for (Point point : shape.getPoints()) {
+            int x = copy.minX(m.y, shape) - point.x;
+            int y = m.y + point.y;
+            list.add(new Point(x,y));
+        }
+        String[] p = new String[20];
+        for (int x = 19; x >= 0; x--) {
+            p[x] = "|";
+            for (int y = 0; y < 10; y++) {
+                if (copy.filled[x][y]) {
+                    p[x] += ("██");
+                } else if(list.contains(new Point(x,y))){
+                    p[x] += ("▒▒");
+                }else {
+                    p[x] += ("  ");
+                }
+            }
+            p[x] += "|";
+        }
+
+        while (move.next != null) {
+            copy.fill(move);
+            list.clear();
+             m = move.next.m;
+             shape = m.piece.getShape(m.rotateIndex);
+            for (Point point : shape.getPoints()) {
+                int x = copy.minX(m.y, shape) - point.x;
+                int y = m.y + point.y;
+                list.add(new Point(x,y));
+            }
+
+
+
+            for (int x = 19; x >= 0; x--) {
+                p[x] += "|";
+                for (int y = 0; y < 10; y++) {
+                    if (copy.filled[x][y]) {
+                        p[x] += ("██");
+                    } else if(list.contains(new Point(x,y))){
+                        p[x] += ("▒▒");
+                    }else {
+                        p[x] += ("  ");
+                    }
+                }
+                p[x] += "|";
+            }
+            move = move.next;
+        }
+        for (int x = 19; x >= 0; x--) {
+            log.info(p[x]);
+        }
+        log.info("--------------------------------------------------------------------------------------------------------------");
+
+
+    }
+
     void paint() {
-        StringBuilder s = new StringBuilder("\n");
+        StringBuilder s = new StringBuilder();
         for (int x = 19; x >= 0; x--) {
             s.append("|");
             for (int y = 0; y < 10; y++) {
@@ -319,10 +362,9 @@ public class Board {
             s.append("|\n");
         }
         s.append("----------------------\n");
-        s.append("nexts:").append(Arrays.toString(next)).append("\n")
-                .append("hold :").append(hold).append("\n")
-                .append("canus:").append(canUseHold).append("\n")
-                .append("curre:").append(currentPiece).append("\n");
+        s.append("nextList:").append(Arrays.toString(next)).append("\n")
+                .append("hold    : ").append(hold).append("\n")
+                .append("current : ").append(currentPiece).append("\n");
         log.info(s.toString());
     }
 
@@ -354,37 +396,30 @@ public class Board {
     }
 
 
+    private static Comparator<Move> comparator = Comparator.comparingInt(move -> -move.getAllMoveValue());
+
     Move get(int dep) {
         if (hold == null) {
-            hold = currentPiece;
-            Piece toUse = next[0];
-            useNext();
-            this.currentPiece = next[0];
-            useNext();
-            return new Move(0, 0, toUse, new Value(0, 0, false), true);
+            hold = next[0];
+            refreshNext();
+            return new Move(0, 0, hold, new Value(0, 0), true);
         }
 
-        Move max = new Move(0, 0, null, new Value(0, Integer.MIN_VALUE, false), false);
+        TreeSet<Move> moves = new TreeSet<>();
 
-        List<Move> moves = new ArrayList<>();
         Piece piece = currentPiece;
-
         for (int i = 0; i <= piece.rotationsEndIndex(); i++) {
             PieceShape shape = piece.getShape(i);
             int width = piece.width(i);
             for (int y = 0; y <= 10 - width; y++) {
                 Board copy = copy();
                 int v = copy.fill(y, shape, piece.height(i));
-                //copy.paint();
                 Value value = copy.value(v);
-                //System.out.println(value);
                 Move tmp = new Move(y, i, piece, value, false);
                 moves.add(tmp);
-                if (value.v > max.value.v) {
-                    max = tmp;
-                }
             }
         }
+
         piece = hold;
         for (int i = 0; i <= piece.rotationsEndIndex(); i++) {
             PieceShape shape = piece.getShape(i);
@@ -392,183 +427,43 @@ public class Board {
             for (int y = 0; y <= 10 - width; y++) {
                 Board copy = copy();
                 int v = copy.fill(y, shape, piece.height(i));
-                //copy.paint();
                 Value value = copy.value(v);
-                //System.out.println(value);
                 Move tmp = new Move(y, i, piece, value, true);
                 moves.add(tmp);
-                if (value.v >  max.value.v) {
-                    max = tmp;
-                }
-            }
-        }
-
-        if(dep<=0){
-            if(max.isUseHold)
-                hold = currentPiece;
-            currentPiece = next[0];
-            useNext();
-            return max;
-        }
-
-        dep--;
-        int maxV = Integer.MIN_VALUE;
-        Move res = null;
-        for (Move move : moves) {
-            Board copy = fill(move);
-            if(move.isUseHold){
-                copy.hold = copy.currentPiece;
-            }
-            copy.currentPiece = copy.next[0];
-            copy.useNext();
-
-            //copy.paint();
-            Move nextMove = copy.get(dep - 1);
-            move.next = nextMove;
-            int avgV = (nextMove.value.getJiluV() + move.value.getJiluV()) / 2 + nextMove.value.v - nextMove.value.jiluV;
-            if (avgV > maxV) {
-                res = move;
-                maxV = avgV;
-            }
-
-        }
-        assert res != null;
-        if(res.isUseHold)
-            hold = currentPiece;
-        currentPiece = next[0];
-        useNext();
-        return res;
-    }
-
-
-    private Move getMove(int dep) {
-        //paint();
-        Move pieceMove = getMove(currentPiece, dep, false);
-
-        Move holdMove = null;
-        if (canUseHold) {
-            log.trace("开始计算holdValue");
-            holdMove = getMove(hold, dep, true);
-            holdMove.isUseHold = true;
-            log.trace("结束计算holdValue");
-        }
-        if (holdMove == null) {
-            if (hold == null) {
-                Board copy = copy();
-                copy.hold = copy.currentPiece;
-                copy.canUseHold = false;
-                copy.currentPiece = copy.next[0];
-                copy.useNext();
-                Move nextMove = copy.getMove(dep - 1);
-                //Move pieceMoveM = getMove(currentPiece,dep - 1,false);
-                if (nextMove.value.v > pieceMove.value.v) {
-                    useNext();
-                    hold = currentPiece;
-                    currentPiece = next[0];
-                    useNext();
-
-                    canUseHold = true;
-                    nextMove.isUseHold = true;
-                    //log.info("init hold");
-                    return nextMove;
-                } else {
-                    currentPiece = next[0];
-                    useNext();
-                    return pieceMove;
-                }
-            } else {
-                currentPiece = next[0];
-                useNext();
-                return pieceMove;
-            }
-        } else {
-            if (canUseHold && pieceMove.value.v < holdMove.value.v) {
-                hold = currentPiece;
-                currentPiece = next[0];
-                useNext();
-                return holdMove;
-            } else {
-                currentPiece = next[0];
-                useNext();
-                canUseHold = true;
-                return pieceMove;
-            }
-        }
-    }
-
-
-    private Move getMove(Piece piece, int dep, boolean isUseHold) {
-        //paint();
-
-        int recodeY = 0;
-        int recodeI = 0;
-        Value maxValue = new Value(0, Integer.MIN_VALUE, false);
-
-        List<Move> moves = new ArrayList<>();
-
-        for (int i = 0; i <= piece.rotationsEndIndex(); i++) {
-            PieceShape shape = piece.getShape(i);
-            int width = piece.width(i);
-            for (int y = 0; y <= 10 - width; y++) {
-                Board copy = copy();
-                int v = copy.fill(y, shape, piece.height(i));
-                //copy.paint();
-                Value value = copy.value(v);
-                //System.out.println(value);
-                moves.add(new Move(y, i, piece, value, isUseHold));
-                if (value.v > maxValue.v) {
-                    maxValue = value;
-                    recodeY = y;
-                    recodeI = i;
-                }
             }
         }
 
         if (dep <= 0) {
-            return new Move(recodeY, recodeI, piece, maxValue, isUseHold);
+            return moves.first();
         }
 
+        TreeSet<Move> newMoves = new TreeSet<>();
 
-        int maxV = Integer.MIN_VALUE;
-        Move res = null;
-        for (Move move : moves) {
-            Board copy = fill(move);
-            copy.currentPiece = copy.next[0];
-            copy.useNext();
-            //copy.paint();
-            Move nextMove = copy.getMove(dep - 1);
-            int avgV = (nextMove.value.getJiluV() + move.value.getJiluV()) / 2 + nextMove.value.v - nextMove.value.jiluV;
-            if (avgV > maxV) {
-                res = move;
-                maxV = avgV;
-            }
-        }
-        return res;
 
+        moves.stream().limit(5).forEach(move -> {
+                    Board copy = copy();
+                    copy.useMove(move);
+                    move.next = copy.get(dep - 1);
+                    newMoves.add(move);
+                }
+        );
+        return newMoves.first();
     }
 
-    void useNext() {
+    public void useMove(Move move) {
+        if (move.m.isUseHold)
+            hold = currentPiece;
+        currentPiece = next[0];
+        refreshNext();
+        fill(move);
+    }
+
+    void refreshNext() {
         System.arraycopy(next, 1, next, 0, 5);
     }
 
-    @NotNull
-    Board fill(Move move) {
-        Board copy = copy();
-        copy.fill(move.y, move.piece.getShape(move.xun), move.piece.height(move.xun));
-        copy.clean();
-        return copy;
+    void fill(Move move) {
+        fill(move.m.y, move.m.piece.getShape(move.m.rotateIndex), move.m.piece.height(move.m.rotateIndex));
     }
 
-    int getHeight() {
-        int h = -1;
-        for (int y = 0; y < 10; y++) {
-            for (int x = 19; x >= 0; x--) {
-                if (filled[x][y] && x > h) {
-                    h = x;
-                    break;
-                }
-            }
-        }
-        return h + 1;
-    }
 }

@@ -1,52 +1,64 @@
 package my.mk.ns;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import my.mk.tetris99bot.InputFrame;
 
 import java.util.EnumSet;
 
 @Data
-@AllArgsConstructor
-public class SwitchInputState {
+public class NSInputState {
 
-    public final static SwitchInputState NONE = new SwitchInputState(EnumSet.noneOf(Button.class), DPad.None, (byte) 128, (byte) 128, (byte) 128, (byte) 128);
+    public final static NSInputState NONE = new NSInputState(EnumSet.noneOf(Button.class), DPad.None, (byte) 128, (byte) 128, (byte) 128, (byte) 128);
     public final static byte[] NONE_BYTES = NONE.toBytes();
+
+    static {
+        NONE.cache = NONE.toBytes();
+    }
 
     public EnumSet<Button> buttons;
     public DPad dPad;
-    public byte leftX;
-    public byte leftY;
-    public byte rightX;
-    public byte rightY;
+    public int leftX;
+    public int leftY;
+    public int rightX;
+    public int rightY;
+    public byte[] cache;
 
-    public SwitchInputState(EnumSet<Button> buttons, DPad dPad) {
-        this(buttons, dPad, (byte) 128, (byte) 128, (byte) 128, (byte) 128);
+    public NSInputState(EnumSet<Button> buttons, DPad dPad, int leftX, int leftY, int rightX, int rightY) {
+        this.buttons = buttons;
+        this.dPad = dPad;
+        this.leftX = leftX;
+        this.leftY = leftY;
+        this.rightX = rightX;
+        this.rightY = rightY;
     }
 
-    public SwitchInputState(EnumSet<Button> buttons) {
-        this(buttons, DPad.None, (byte) 128, (byte) 128, (byte) 128, (byte) 128);
+    public NSInputState(EnumSet<Button> buttons, DPad dPad) {
+        this(buttons, dPad, 128, 128, 128, 128);
     }
 
-    public SwitchInputState(Button button) {
-        this(EnumSet.of(button), DPad.None, (byte) 128, (byte) 128, (byte) 128, (byte) 128);
+    public NSInputState(EnumSet<Button> buttons) {
+        this(buttons, DPad.None, 128, 128, 128, 128);
     }
 
-    public SwitchInputState(Button button,DPad dPad) {
-        this(EnumSet.of(button),dPad, (byte) 128, (byte) 128, (byte) 128, (byte) 128);
+    public NSInputState(Button button) {
+        this(EnumSet.of(button), DPad.None, 128, 128, 128, 128);
     }
 
-    public SwitchInputState(DPad dPad) {
-        this(EnumSet.noneOf(Button.class), dPad, (byte) 128, (byte) 128, (byte) 128, (byte) 128);
+    public NSInputState(Button button, DPad dPad) {
+        this(EnumSet.of(button), dPad, 128, 128, 128, 128);
     }
 
+    public NSInputState(DPad dPad) {
+        this(EnumSet.noneOf(Button.class), dPad, 128, 128, 128, 128);
+    }
 
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof SwitchInputState)) {
+        if (!(obj instanceof NSInputState)) {
             return false;
         }
-        SwitchInputState other = (SwitchInputState) obj;
+        NSInputState other = (NSInputState) obj;
         if (other.dPad != dPad)
             return false;
         if (buttons.size() != other.buttons.size())
@@ -75,17 +87,17 @@ public class SwitchInputState {
         buf[0] = (byte) ((buttonByte & 0xFF00) >> 8);
         buf[1] = (byte) (buttonByte & 0xFF);
         buf[2] = dPad.getValue();
-        buf[3] = leftX;
-        buf[4] = leftY;
-        buf[5] = rightX;
-        buf[6] = rightY;
+        buf[3] = (byte) leftX;
+        buf[4] = (byte) leftY;
+        buf[5] = (byte) rightX;
+        buf[6] = (byte) rightY;
         buf[7] = 0;
         buf[8] = CalculateCrc8(buf, 0, buf.length - 1);
         return buf;
     }
 
 
-    public static byte CalculateCrc8(byte[] data, int off, int len) {
+    private static byte CalculateCrc8(byte[] data, int off, int len) {
         byte output = 0;
         for (int i = off; i < len; i++) {
             output ^= data[i];
@@ -105,7 +117,7 @@ public class SwitchInputState {
     @Override
     public String toString() {
         StringBuilder str = new StringBuilder();
-        str.append( dPad).append("\t");
+        str.append(dPad).append("\t");
 
         for (Button button : buttons) {
             str.append(button).append(" ");

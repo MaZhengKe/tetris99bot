@@ -74,9 +74,9 @@ public class SerialPortUtils implements SerialPortEventListener {
                         outputStream = serialPort.getOutputStream();
                         inputStream = serialPort.getInputStream();
                     } catch (PortInUseException e) {
-                        throw new CustomException("端口被占用");
+                        throw new RuntimeException("端口被占用");
                     } catch (UnsupportedCommOperationException e) {
-                        throw new CustomException("不支持的COMM端口操作异常");
+                        throw new RuntimeException("不支持的COMM端口操作异常");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -87,7 +87,7 @@ public class SerialPortUtils implements SerialPortEventListener {
         }
         // 若不存在该串口则抛出异常
         if (!isExsist) {
-            throw new CustomException("不存在该串口！");
+            throw new RuntimeException("不存在该串口！");
         }
     }
 
@@ -151,7 +151,7 @@ public class SerialPortUtils implements SerialPortEventListener {
                 break;
             }
         } catch (IOException e) {
-            throw new CustomException("读取串口数据时发生IO异常");
+            throw new RuntimeException("读取串口数据时发生IO异常");
         }
     }
 
@@ -172,15 +172,15 @@ public class SerialPortUtils implements SerialPortEventListener {
                 //System.out.println("data:" + data);
                 if (len >= 2) {
 
-                    System.out.println("read: " + System.nanoTime()+" " + len + " " + readBuffer[0] + " " + readBuffer[1]);// 读取后置空流对象
+                    System.out.println("read: " + System.nanoTime() + " " + len + " " + readBuffer[0] + " " + readBuffer[1]);// 读取后置空流对象
                 } else
-                    System.out.println("read: " + System.nanoTime()+" " +len + " " + readBuffer[0]);// 读取后置空流对象
+                    System.out.println("read: " + System.nanoTime() + " " + len + " " + readBuffer[0]);// 读取后置空流对象
 //                inputStream.close();
 //                inputStream = null;
                 break;
             }
         } catch (IOException e) {
-            throw new CustomException("读取串口数据时发生IO异常");
+            throw new RuntimeException("读取串口数据时发生IO异常");
         }
     }
 
@@ -198,7 +198,7 @@ public class SerialPortUtils implements SerialPortEventListener {
         try {
             writerBuffer = hexToByteArray(data);
         } catch (NumberFormatException e) {
-            throw new CustomException("命令格式错误！");
+            throw new RuntimeException("命令格式错误！");
         }
         send(writerBuffer);
     }
@@ -220,14 +220,47 @@ public class SerialPortUtils implements SerialPortEventListener {
 
     }
 
+    private int lastSend = 0;
+
     public void send(byte[] writerBuffer) {
         try {
-            outputStream.write(writerBuffer);
-            outputStream.flush();
+            int b;
+            switch (writerBuffer[1]) {
+                case 0:
+                    b = 0;
+                    break;
+                case 1:
+                    b = 1;
+                    break;
+                case 2:
+                    b = 2;
+                    break;
+                case 4:
+                    b = 3;
+                    break;
+                case 8:
+                    b = 4;
+                    break;
+                case 16:
+                    b = 5;
+                    break;
+                default:
+                    b = 0;
+            }
+            int toSend = writerBuffer[2] * 9 + b;
+            if(toSend != lastSend){
+                outputStream.write(toSend);
+                outputStream.flush();
+                log.trace("send :{} {}", writerBuffer[1], writerBuffer[2]);
+                lastSend = toSend;
+            }
+            Thread.sleep(8);
         } catch (NullPointerException e) {
-            throw new CustomException("找不到串口。");
+            throw new RuntimeException("找不到串口。");
         } catch (IOException e) {
-            throw new CustomException("发送信息到串口时发生IO异常");
+            throw new RuntimeException("发送信息到串口时发生IO异常");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -255,7 +288,7 @@ public class SerialPortUtils implements SerialPortEventListener {
                     inputStream.close();
                     inputStream = null;
                 } catch (IOException e) {
-                    throw new CustomException("关闭输入流时发生IO异常");
+                    throw new RuntimeException("关闭输入流时发生IO异常");
                 }
             }
             if (outputStream != null) {
@@ -263,7 +296,7 @@ public class SerialPortUtils implements SerialPortEventListener {
                     outputStream.close();
                     outputStream = null;
                 } catch (IOException e) {
-                    throw new CustomException("关闭输出流时发生IO异常");
+                    throw new RuntimeException("关闭输出流时发生IO异常");
                 }
             }
             serialPort.close();

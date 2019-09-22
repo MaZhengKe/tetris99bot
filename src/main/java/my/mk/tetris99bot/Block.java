@@ -9,22 +9,21 @@ class Block {
     Mat mat;
     String colour;
     int que;
-    int [][][] hsv = new int[8][8][3];
+    int[][][] hsv = new int[8][8][3];
 
     Block(Mat mat, String colour) {
-        this(mat,colour,20);
+        this(mat, colour, 20);
     }
 
     Block(Mat mat, String colour, int que) {
         this.mat = Util.toHSV(mat);
         this.colour = colour;
         this.que = que;
-        int[] tmp= new int[3];
-
+        int[] tmp = new int[3];
+        UByteIndexer indexer = this.mat.createIndexer();
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
-                UByteIndexer indexer = this.mat.createIndexer();
-                indexer.get(x,y,tmp);
+                indexer.get(x * 6, y * 6, tmp);
                 System.arraycopy(tmp, 0, hsv[x][y], 0, 3);
             }
         }

@@ -26,10 +26,10 @@ public class Board {
     Piece currentPiece = null;
 
     private Board copy() {
-        return new Board(copy(filled), next.clone(), hold, currentPiece);
+        return new Board(copyFilled(filled), next.clone(), hold, currentPiece);
     }
 
-    private static boolean[][] copy(boolean[][] sourceRows) {
+    private static boolean[][] copyFilled(boolean[][] sourceRows) {
         boolean[][] newRows = new boolean[20][10];
         for (int i = 0; i < newRows.length; i++) {
             newRows[i] = sourceRows[i].clone();

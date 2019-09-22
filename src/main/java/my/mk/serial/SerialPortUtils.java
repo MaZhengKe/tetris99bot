@@ -11,6 +11,8 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
+import static my.mk.tetris99bot.Util.sleep8ms;
+
 /**
  * 串口参数的配置 串口一般有如下参数可以在该串口打开以前进行配置： 包括串口号，波特率，输入/输出流控制，数据位数，停止位和奇偶校验。
  */
@@ -221,46 +223,20 @@ public class SerialPortUtils implements SerialPortEventListener {
     }
 
     private int lastSend = 0;
+    private static int[] map = new int[]{0, 1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 5};
 
     public void send(byte[] writerBuffer) {
         try {
-            int b;
-            switch (writerBuffer[1]) {
-                case 0:
-                    b = 0;
-                    break;
-                case 1:
-                    b = 1;
-                    break;
-                case 2:
-                    b = 2;
-                    break;
-                case 4:
-                    b = 3;
-                    break;
-                case 8:
-                    b = 4;
-                    break;
-                case 16:
-                    b = 5;
-                    break;
-                default:
-                    b = 0;
-            }
-            int toSend = writerBuffer[2] * 9 + b;
-            if(toSend != lastSend){
+            int toSend = writerBuffer[2] * 9 + map[writerBuffer[1]];
+            if (toSend != lastSend) {
                 outputStream.write(toSend);
                 outputStream.flush();
                 log.trace("send :{} {}", writerBuffer[1], writerBuffer[2]);
                 lastSend = toSend;
             }
-            Thread.sleep(8);
-        } catch (NullPointerException e) {
-            throw new RuntimeException("找不到串口。");
+            sleep8ms();
         } catch (IOException e) {
             throw new RuntimeException("发送信息到串口时发生IO异常");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         }
     }
 

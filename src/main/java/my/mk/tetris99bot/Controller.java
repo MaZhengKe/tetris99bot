@@ -86,6 +86,7 @@ public class Controller extends JFrame {
     private HashMap<Move.M, List<NSInputState>> cache = new HashMap<>();
 
 
+    //TODO 这里的获取逻辑太奇葩了
     private void initCache() {
         boolean[] allBoolean = new boolean[]{false, true};
         for (boolean isUseHold : allBoolean) {
@@ -96,31 +97,39 @@ public class Controller extends JFrame {
                         List<Button> rotate = new ArrayList<>();
                         List<DPad> moving = new ArrayList<>();
                         List<NSInputState> list = new ArrayList<>();
-                        if (isUseHold){
+                        if (isUseHold) {
                             list.add(ZL);
                             list.add(NSInputState.NONE);
-                    }
+                        }
 
                         int rotateIndex = pieceShape.getRotateIndex();
                         int ni = piece.rotationsEndIndex() + 1 - rotateIndex;
-                        if (ni < rotateIndex) {
-                            for (int i = 0; i < ni; i++) {
-                                rotate.add(Button.A);
-                            }
-                        } else {
-                            for (int i = 0; i < rotateIndex; i++) {
-                                rotate.add(Button.X);
-                            }
-                        }
-
                         int startY = pieceShape.getY();
-                        if (startY > y) {
-                            for (int i = 0; i < startY - y; i++) {
-                                moving.add(DPad.Left);
-                            }
-                        } else {
-                            for (int i = 0; i < y - startY; i++) {
+
+                        if (piece.rotationsEndIndex() == 1 && rotateIndex == 1 && y > startY) {
+                            rotate.add(Button.A);
+                            for (int i = 0; i < y - startY - 1; i++) {
                                 moving.add(DPad.Right);
+                            }
+                        }else {
+                            if (ni < rotateIndex) {
+                                for (int i = 0; i < ni; i++) {
+                                    rotate.add(Button.A);
+                                }
+                            } else {
+                                for (int i = 0; i < rotateIndex; i++) {
+                                    rotate.add(Button.X);
+                                }
+                            }
+
+                            if (startY > y) {
+                                for (int i = 0; i < startY - y; i++) {
+                                    moving.add(DPad.Left);
+                                }
+                            } else {
+                                for (int i = 0; i < y - startY; i++) {
+                                    moving.add(DPad.Right);
+                                }
                             }
                         }
 

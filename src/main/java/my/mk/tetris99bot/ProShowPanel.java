@@ -11,6 +11,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static my.mk.tetris99bot.Util.sleep8ms;
 import static org.bytedeco.javacv.Java2DFrameUtils.toBufferedImage;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
 
@@ -35,12 +36,12 @@ class ProShowPanel extends JPanel {
             InputFrame inputFrame = null;
             while (true) {
                 if (inputFrame != null && inputFrame.time > 0) {
-
                     if (toChange) {
+                        toChange = false;
                         state = inputFrame.NSInputState;
                         repaint();
                     }
-                    sleep();
+                    sleep8ms();
                     inputFrame.time--;
                 } else {
                     InputFrame newScriptFrame = queue.poll();
@@ -49,19 +50,11 @@ class ProShowPanel extends JPanel {
                         inputFrame = newScriptFrame;
                         toChange = true;
                     } else {
-                        sleep();
+                        sleep8ms();
                     }
                 }
             }
         }).start();
-    }
-
-    private void sleep() {
-        try {
-            Thread.sleep(8);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     public void paint(Graphics graphics) {

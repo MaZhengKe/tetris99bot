@@ -11,15 +11,17 @@ import org.opencv.core.Core;
 import java.util.*;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
 @Slf4j
 public class Board {
+    public Board() {
+    }
 
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
 
+    // TODO 不使用二维数组
     boolean[][] filled = new boolean[20][10];
     Piece[] next = new Piece[6];
     Piece hold = null;
@@ -366,33 +368,6 @@ public class Board {
                 .append("hold    : ").append(hold).append("\n")
                 .append("current : ").append(currentPiece).append("\n");
         log.info(s.toString());
-    }
-
-
-    public static void main(String[] args) {
-        Piece[] pieces = new Piece[]{new PieceO(), new PieceI(), new PieceS(), new PieceZ(), new PieceL(), new PieceJ(), new PieceT()};
-
-        String s = "I";
-        Random random = new Random();
-        Board board = new Board();
-        StringBuilder recod = new StringBuilder();
-
-        for (char c : s.toCharArray()) {
-            int i = Piece.indexOf(c) - 1;
-            Piece piece = pieces[i];
-            board.fill(piece);
-            board.paint();
-            System.out.println("---------------------------------" + piece.character());
-        }
-//
-//        for (int i = 0; i < 100; i++) {
-//            Piece piece = pieces[random.nextInt(7)];
-//            board.fill(piece);
-//            board.paint();
-//            recod.append(piece.character());
-//            System.out.println("---------------------------------" + piece.character() + " " + recod.toString());
-//        }
-
     }
 
 

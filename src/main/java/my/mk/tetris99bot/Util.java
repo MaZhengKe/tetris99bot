@@ -27,6 +27,7 @@ public class Util {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         Loader.load(opencv_core.class);
     }
+
     private static List<Block> includedMats = new ArrayList<>();
     private static String ROOT_PATH = "D:/99bot/theme/";
     private static String THEME = "Kirby";
@@ -86,15 +87,15 @@ public class Util {
 
     private static double similarity(Mat mat, Block block) {
         UByteIndexer indexer = mat.createIndexer();
-        int[] a = new int[3];
+        int[] tmp = new int[3];
         if (block.equals(gray)) {
 
             int all = 0;
 
             for (int x = 0; x < 8; x++) {
                 for (int y = 0; y < 8; y++) {
-                    indexer.get(x * 6, y * 6, a);
-                    int num = abs(a[1] - block.hsv[x][y][1]) + abs(a[2] - block.hsv[x][y][2]);
+                    indexer.get(x * 6, y * 6, tmp);
+                    int num = abs(tmp[1] - block.hsv[x][y][1]) + abs(tmp[2] - block.hsv[x][y][2]);
                     if (num < 35)
                         all++;
                 }
@@ -109,12 +110,12 @@ public class Util {
         for (int x = 0; x < 8; x++) {
             for (int y = 0; y < 8; y++) {
 
-                indexer.get(x * 6, y * 6, a);
-                if (a[2] < 85) {
+                indexer.get(x * 6, y * 6, tmp);
+                if (tmp[2] < 85) {
                     all -= 2;
                     continue;
                 }
-                int num = abs(a[0] - block.hsv[x][y][0]);
+                int num = abs(tmp[0] - block.hsv[x][y][0]);
 
                 if (num < 10)
                     all++;
@@ -170,7 +171,6 @@ public class Util {
                 }
             }
         }
-
 
         return filled;
     }
@@ -376,7 +376,7 @@ public class Util {
             Mat mat1 = piece.getMat();
             double similarity = matSim(mat, mat1, 11, 22);
             //log.info("{} {}",piece,similarity);
-            if (similarity > max ) {
+            if (similarity > max) {
                 max = similarity;
                 candidate = piece;
             }

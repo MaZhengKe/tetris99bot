@@ -29,9 +29,12 @@ public class FrameTracker extends Thread {
 
     synchronized boolean[][] getFilled(boolean isOnlyUseGray) {
         waitFor(filledChanged);
-        log.info("getfilled start");
         Timer.start();
-        Mat mat = toHSV(new Mat(converted, boardRect));
+        log.info("getfilled start");
+        Mat img = new Mat(converted, boardRect);
+        log.info("scr");
+        Mat mat = toHSV(img);
+        log.info("toHSV");
         boolean[][] filled = Util.getFilled(mat, isOnlyUseGray);
         filledChanged = false;
         log.info("getfilled end cost:{}" ,Timer.end());

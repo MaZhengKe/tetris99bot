@@ -4,3 +4,4 @@
 
 
 目前已经停滞，准备用C++来重新实现一遍，以达到更好的识别效率，也可以避免繁琐的通过JavaCV来调用FFmpeg和OpenCV
+c++版本，有更好的识别效率和更低的延迟 [Tetris99Bot-C](https://github.com/mk014/Tetris99Bot-C)
